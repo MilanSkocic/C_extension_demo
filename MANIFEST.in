@@ -1,0 +1,5 @@
+# sdist
+recursive-include docs *
+
+# bdist
+recursive-include c_ext_example *.h *.c *.pyx
