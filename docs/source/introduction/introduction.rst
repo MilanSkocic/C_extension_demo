@@ -14,7 +14,7 @@ How to install
 Dependencies
 ==============
 
-.. literalinclude:: ../../../REQUIREMENTS.txt
+.. literalinclude:: ../../../requirements.txt
 
 License
 ==========
