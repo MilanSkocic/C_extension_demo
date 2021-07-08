@@ -12,34 +12,26 @@ PyDoc_STRVAR(module_docstring, "This module provides an example of calling a Pyt
 PyDoc_STRVAR(optimizer_docstring, "Dummy optimizer. It does not perform any calculations. "
 "optimizer(fcn, args)-> (fvec, xopt)");
 
-/* Python callback function - borrowed reference */
-static PyObject *py_fcn=NULL;
-
-/* passed from caller - borrowed references */
-static PyObject *fcn_args=NULL;
-
-/* new_args = (x, *args) - stealed references */
-static PyObject *fcn_xargs=NULL;
-
-/* initial guess for the optimizer - borrowed reference - will be turned into ndarray if not already */
-static PyObject *xopt_obj=NULL;
-
-/* ndarray of the initial guess - owned reference */
-static PyArrayObject *xopt_array = NULL;
-
-/* returned values from Python callback - owned reference */
-static PyObject *fvec_obj=NULL;
-
-/* returned values from Python callback - owned reference */
-static PyArrayObject *fvec_array=NULL;
-
+static PyObject *py_fcn=NULL;/* Python callback function - borrowed reference */
+static PyObject *fcn_args=NULL;/* passed from caller - borrowed references */
+static PyObject *fcn_xargs=NULL;/* new_args = (x, *args) - stealed references */
+static PyObject *xopt_obj=NULL;/* initial guess for the optimizer - borrowed reference - will be turned into ndarray if not already */
+static PyArrayObject *xopt_array = NULL;/* ndarray of the initial guess - owned reference */
+static PyObject *fvec_obj=NULL;/* returned values from Python callback - owned reference */
+static PyArrayObject *fvec_array=NULL;/* returned values from Python callback - owned reference */
 
 /* C wrapper of the Python callback function
  * signature is dependent on the definition of cost function signature in the optimizer
  * the principle is to get C variable and update the Python variable passed as arguments to the Python callback */
 void fcn(size_t m, size_t n, double *x, double *fvec){
 
+    Py_DECREF(fvec_obj);
+    Py_DECREF(fvec_array);
+
     fvec_obj = PyObject_Call(py_fcn, fcn_xargs, NULL);
+    if(!PyArray_CheckExact(fvec_obj)){
+        Py_INCREF(fvec_obj);
+    }
     fvec_array = (PyArrayObject *) PyArray_FROM_OTF(fvec_obj, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
 
 }
@@ -68,6 +60,11 @@ static PyObject *wrap_optimizer(PyObject *self, PyObject *args)
         PyErr_SetString(PyExc_TypeError, "args must be an iterable");
         return NULL;
     }
+
+    Py_INCREF(py_fcn);
+    Py_INCREF(xopt_obj);
+    Py_INCREF(fcn_args);
+
     /* check if fcn_args can turned to an Numpy ndarray */
     xopt_array = (PyArrayObject *) PyArray_FROM_OTF(xopt_obj, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
     if (xopt_array == NULL){
@@ -80,10 +77,11 @@ static PyObject *wrap_optimizer(PyObject *self, PyObject *args)
     // PyTuple_SetItem steals a reference
     nargs = PySequence_Length(fcn_args)+1;
     fcn_xargs = PyTuple_New(nargs);
-    PyTuple_SetItem(fcn_xargs, 0, (PyObject *)xopt_array);
     Py_INCREF(xopt_array);
+    PyTuple_SetItem(fcn_xargs, 0, (PyObject *)xopt_array);
     for (i=1; i<nargs; i++) {
         item = PyTuple_GetItem(fcn_args, i-1);
+        Py_INCREF(item);
         PyTuple_SetItem(fcn_xargs, i, item);
     }
     /* get number of elements in array to be optimized */
@@ -91,9 +89,12 @@ static PyObject *wrap_optimizer(PyObject *self, PyObject *args)
 
     /* call callback function */
     fvec_obj = PyObject_Call(py_fcn, fcn_xargs, NULL);
+    if(!PyArray_CheckExact(fvec_obj)){
+        Py_INCREF(fvec_obj);
+    }
     fvec_array = (PyArrayObject *) PyArray_FROM_OTF(fvec_obj, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
     /* check if returned object from callback is an iterable that can be turned into an Numpy array */
-    if (fvec_obj == NULL )
+    if (!PySequence_Check(fvec_obj))
     {
         PyErr_SetString(PyExc_TypeError, "func must return an iterable.");
         Py_XDECREF(fvec_obj);
@@ -115,11 +116,16 @@ static PyObject *wrap_optimizer(PyObject *self, PyObject *args)
                     NULL);
 
     /* cleanup not returned objects */
-    Py_XDECREF(fcn_xargs);
-    Py_XDECREF(fvec_obj);
+    Py_DECREF(py_fcn);
+    Py_DECREF(fcn_args);
+    Py_DECREF(xopt_obj);
+
+    Py_DECREF(fvec_obj);
+    Py_DECREF(fcn_xargs);
+
 
     /* Return objects */
-    return Py_BuildValue("(OO)", PyArray_Return(xopt_array), PyArray_Return(fvec_array));
+    return Py_BuildValue("(OO)", xopt_array, fvec_array);
 }
 
 // Methods definitons
