@@ -117,9 +117,11 @@ def model(p, x):
 
 
 def residuals(p, x, y, w, model):
-    print("Optimizer sent p=", p)
-    return (y - model(p, x))*w
+    print("Sent by optimzer ", p)
+    res = (y - model(p, x))*w
+    return res.tolist()
 
 
 args = (x, y, w, model)
-print(capi_callback.wrap_optimizer(residuals, p, args))
+res = capi_callback.wrap_optimizer(residuals, p, args)
+print(res)
