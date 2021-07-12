@@ -25,11 +25,11 @@ static PyArrayObject *fvec_array=NULL;/* returned values from Python callback - 
  * the principle is to get C variable and update the Python variable passed as arguments to the Python callback */
 void fcn(size_t m, size_t n, double *x, double *fvec){
 
-    
     Py_DECREF(fvec_obj);
     Py_DECREF(fvec_array);
-
+    PyGILState_STATE state = PyGILState_Ensure();
     fvec_obj = PyObject_Call(py_fcn, fcn_xargs, NULL);
+    PyGILState_Release(state);
     fvec_array = (PyArrayObject *) PyArray_FROM_OTF(fvec_obj, NPY_DOUBLE, NPY_ARRAY_ENSURECOPY);
 }
 
@@ -59,7 +59,7 @@ static PyObject *wrap_optimizer(PyObject *self, PyObject *args)
     }
 
     /* check if fcn_args can turned to an Numpy ndarray */
-    xopt_array = (PyArrayObject *) PyArray_FROM_OTF(xopt_obj, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
+    xopt_array = (PyArrayObject *) PyArray_FROM_OTF(xopt_obj, NPY_DOUBLE, NPY_ARRAY_ENSURECOPY);
     if (xopt_array == NULL){
         PyErr_SetString(PyExc_TypeError, "x0 must be an iterable.");
         Py_XDECREF(xopt_array);
@@ -76,12 +76,15 @@ static PyObject *wrap_optimizer(PyObject *self, PyObject *args)
         item = PyTuple_GetItem(fcn_args, i-1);
         Py_INCREF(item);
         PyTuple_SetItem(fcn_xargs, i, item);
+
     }
     /* get number of elements in array to be optimized */
     m = PyArray_DIM(xopt_array, 0);
 
     /* call callback function */
-    fvec_obj = PyObject_Call(py_fcn, fcn_xargs, NULL);
+    PyGILState_STATE state = PyGILState_Ensure();
+    fvec_obj = PyObject_CallObject(py_fcn, fcn_xargs);
+    PyGILState_Release(state);
     fvec_array = (PyArrayObject *) PyArray_FROM_OTF(fvec_obj, NPY_DOUBLE, NPY_ARRAY_ENSURECOPY);
     /* check if returned object from callback is an iterable that can be turned into an Numpy array */
     if (!PySequence_Check(fvec_obj))
@@ -98,7 +101,7 @@ static PyObject *wrap_optimizer(PyObject *self, PyObject *args)
     }
     /* get number of elements in fvec */
     n = PyArray_DIM(fvec_array, 0);
-
+    
     /* call optimizer
      * pass xopt_array pointer to data for the optimizer to work on */
     optimizer(&fcn, m, n,

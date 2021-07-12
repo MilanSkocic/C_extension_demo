@@ -117,9 +117,8 @@ def model(p, x):
 
 
 def residuals(p, x, y, w, model):
-    print("Sent by optimzer ", p)
     res = (y - model(p, x))*w
-    return res.tolist()
+    return res
 
 
 args = (x, y, w, model)
