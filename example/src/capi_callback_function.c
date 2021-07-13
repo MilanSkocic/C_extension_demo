@@ -25,11 +25,15 @@ static PyArrayObject *fvec_array=NULL;/* returned values from Python callback - 
  * the principle is to get C variable and update the Python variable passed as arguments to the Python callback */
 void fcn(size_t m, size_t n, double *x, double *fvec){
 
+    PyGILState_STATE state;
+    
     Py_DECREF(fvec_obj);
     Py_DECREF(fvec_array);
-    PyGILState_STATE state = PyGILState_Ensure();
+    
+    state = PyGILState_Ensure();
     fvec_obj = PyObject_Call(py_fcn, fcn_xargs, NULL);
     PyGILState_Release(state);
+    
     fvec_array = (PyArrayObject *) PyArray_FROM_OTF(fvec_obj, NPY_DOUBLE, NPY_ARRAY_ENSURECOPY);
 }
 
@@ -38,6 +42,7 @@ static PyObject *wrap_optimizer(PyObject *self, PyObject *args)
 {
     size_t m, n, i, nargs;
     PyObject *item=NULL;
+    PyGILState_STATE state;
 
     /* Parse the input tuple */
     if (!PyArg_ParseTuple(args, "OOO",&py_fcn, &xopt_obj, &fcn_args))
@@ -82,9 +87,10 @@ static PyObject *wrap_optimizer(PyObject *self, PyObject *args)
     m = PyArray_DIM(xopt_array, 0);
 
     /* call callback function */
-    PyGILState_STATE state = PyGILState_Ensure();
+    state = PyGILState_Ensure();
     fvec_obj = PyObject_CallObject(py_fcn, fcn_xargs);
     PyGILState_Release(state);
+    
     fvec_array = (PyArrayObject *) PyArray_FROM_OTF(fvec_obj, NPY_DOUBLE, NPY_ARRAY_ENSURECOPY);
     /* check if returned object from callback is an iterable that can be turned into an Numpy array */
     if (!PySequence_Check(fvec_obj))
