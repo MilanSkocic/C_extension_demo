@@ -34,7 +34,7 @@ void fcn(size_t m, size_t n, double *x, double *fvec){
     fvec_obj = PyObject_Call(py_fcn, fcn_xargs, NULL);
     PyGILState_Release(state);
     
-    fvec_array = (PyArrayObject *) PyArray_FROM_OTF(fvec_obj, NPY_DOUBLE, NPY_ARRAY_ENSURECOPY);
+    fvec_array = (PyArrayObject *) PyArray_FROM_OTF(fvec_obj, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
 }
 
 /* Python wrapper of the C optimizer */
@@ -91,7 +91,7 @@ static PyObject *wrap_optimizer(PyObject *self, PyObject *args)
     fvec_obj = PyObject_CallObject(py_fcn, fcn_xargs);
     PyGILState_Release(state);
     
-    fvec_array = (PyArrayObject *) PyArray_FROM_OTF(fvec_obj, NPY_DOUBLE, NPY_ARRAY_ENSURECOPY);
+    fvec_array = (PyArrayObject *) PyArray_FROM_OTF(fvec_obj, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
     /* check if returned object from callback is an iterable that can be turned into an Numpy array */
     if (!PySequence_Check(fvec_obj))
     {
