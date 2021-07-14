@@ -29,7 +29,8 @@ void fcn(size_t m, size_t n, double *x, double *fvec){
     
     Py_DECREF(fvec_obj);
     Py_DECREF(fvec_array);
-    
+   
+    // lock GIL
     state = PyGILState_Ensure();
     fvec_obj = PyObject_Call(py_fcn, fcn_xargs, NULL);
     PyGILState_Release(state);
@@ -87,6 +88,7 @@ static PyObject *wrap_optimizer(PyObject *self, PyObject *args)
     m = PyArray_DIM(xopt_array, 0);
 
     /* call callback function */
+    // Lock GIL
     state = PyGILState_Ensure();
     fvec_obj = PyObject_CallObject(py_fcn, fcn_xargs);
     PyGILState_Release(state);
